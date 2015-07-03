@@ -57,28 +57,29 @@ angular.module('ui.bootstrap.modal', [])
 /**
  * A helper directive for the $modal service. It creates a backdrop element.
  */
-  .directive('modalBackdrop', ['$timeout', function ($timeout) {
+  .directive('modalBackdrop', ['$timeout', '$animate', function ($timeout, $animate) {
     return {
       restrict: 'EA',
       replace: true,
       templateUrl: 'template/modal/backdrop.html',
       compile: function (tElement, tAttrs) {
-        tElement.addClass(tAttrs.backdropClass);
+        // tElement.addClass(tAttrs.backdropClass);
         return linkFn;
       }
     };
 
     function linkFn(scope, element, attrs) {
-      scope.animate = false;
-
-      //trigger CSS transitions
-      $timeout(function () {
-        scope.animate = true;
-      });
+      if ($animate.enabled()) {
+        $animate.on('addClass', element, function(el, phase) {
+        });
+        $animate.addClass(element, 'in');
+      } else {
+        element.addClass('in');
+      }
     }
   }])
 
-  .directive('modalWindow', ['$modalStack', '$q', function ($modalStack, $q) {
+  .directive('modalWindow', ['$modalStack', '$q', '$animate', function ($modalStack, $q, $animate) {
     return {
       restrict: 'EA',
       scope: {
@@ -120,7 +121,12 @@ angular.module('ui.bootstrap.modal', [])
 
         modalRenderDeferObj.promise.then(function () {
           // trigger CSS transitions
-          scope.animate = true;
+          // scope.animate = true;
+          if ($animate.enabled()) {
+            $animate.addClass(element, 'in');
+          } else {
+            element.addClass('in');
+          }
 
           var inputsWithAutofocus = element[0].querySelectorAll('[autofocus]');
           /**
@@ -147,16 +153,17 @@ angular.module('ui.bootstrap.modal', [])
     };
   }])
 
-  .directive('modalAnimationClass', [
-    function () {
-      return {
-        compile: function (tElement, tAttrs) {
-          if (tAttrs.modalAnimation) {
-            tElement.addClass(tAttrs.modalAnimationClass);
-          }
-        }
-      };
-    }])
+  //TODO: uncomment and use configurable animate class
+  // .directive('modalAnimationClass', [
+  //   function () {
+  //     return {
+  //       compile: function (tElement, tAttrs) {
+  //         if (tAttrs.modalAnimation) {
+  //           tElement.addClass(tAttrs.modalAnimationClass);
+  //         }
+  //       }
+  //     };
+  //   }])
 
   .directive('modalTransclude', function () {
     return {
@@ -233,11 +240,15 @@ angular.module('ui.bootstrap.modal', [])
         // Closing animation
         scope.animate = false;
 
-        if (domEl.attr('modal-animation') && $animate.enabled()) {
+        if (domEl.attr('modal-animation') && $animate.enabled() && domEl.hasClass('in')) {
           // transition out
-          domEl.one('$animate:close', function closeFn() {
-            $rootScope.$evalAsync(afterAnimating);
+          $animate.on('removeClass', domEl, function closeFn(el, phase) {
+            if (phase === 'close') {
+              $rootScope.$evalAsync(afterAnimating);
+            }
           });
+
+          $animate.removeClass(domEl, 'in');
         } else {
           // Ensure this call is async
           $timeout(afterAnimating);
